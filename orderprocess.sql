@@ -1,72 +1,105 @@
-create database orderProcess;
-use orderProcess;
+create database OrderDB;
+use OrderDB;
+create table salesman(
+salesman_id int,
+sname varchar(15), 
+city varchar(15),
+commission  int,
+primary key(salesman_id));
 
-create table cust(
-	custno int,
-    cname varchar(30),
-    city varchar(30),
-    primary key(custno)
-);
+INSERT INTO SALESMAN VALUES (1000, 'JOHN','BANGALORE',25); 
+INSERT INTO SALESMAN VALUES (2000,'RAVI','BANGALORE',20); 
+INSERT INTO SALESMAN VALUES (3000, 'KUMAR','MYSORE',15); 
+INSERT INTO SALESMAN VALUES (4000, 'SMITH','DELHI',30); 
+INSERT INTO SALESMAN VALUES (5000, 'HARSHA','HYDRABAD',15); 
+ select * from salesman;
+ 
+ create table CUSTOMER (Customer_id int,
+ Cust_Name varchar(15),
+ City varchar(15),
+ Grade int,
+ Salesman_id int,
+ primary key(Customer_id),
+ foreign key (Salesman_id) references salesman(Salesman_id));
+ 
+INSERT INTO CUSTOMER VALUES (10, 'PREETHI','BANGALORE', 100, 1000); 
+INSERT INTO CUSTOMER VALUES (11, 'VIVE','MANGALORE', 300, 1000); 
+INSERT INTO CUSTOMER VALUES (12, 'BHASKAR','CHENNAI', 400, 2000); 
+INSERT INTO CUSTOMER VALUES (13, 'CHETHAN','BANGALORE', 200, 2000); 
+INSERT INTO CUSTOMER VALUES (14, 'MAMATHA','BANGALORE', 400, 3000); 
 
-create table orderD(
-	orderno int,
-    odate date,
-    custno int,
-    ordAmt int,
-    primary key(orderno),
-    foreign key(custno) references cust(custno)
-);
+create table ORDERS (Ord_No int,
+Purchase_Amt int,
+Ord_Date varchar(15), 
+Customer_id int, 
+Salesman_id int,
+primary key(Ord_No),
+foreign key (Salesman_id) references salesman(Salesman_id),
+foreign key (Customer_id) references CUSTOMER(Customer_id));
 
-create table item(
-	itemno int,
-    unitprice int,
-    primary key(itemno)
-);
+INSERT INTO ORDERS VALUES (50, 5000, '04-MAY-17', 10, 1000); 
+INSERT INTO ORDERS VALUES (51, 450, '20-JAN-17', 10, 2000);
+INSERT INTO ORDERS VALUES (52, 1000, '24-FEB-17', 13, 2000); 
+INSERT INTO ORDERS VALUES (53, 3500, '13-APR-17', 14, 3000); 
+INSERT INTO ORDERS VALUES (54, 550, '09-MAR-17', 12, 2000);
 
-create table ordItem(
-	orderno int,
-    itemno int,
-    qty int,
-    primary key(orderno,itemno),
-    foreign key(orderno) references orderD(orderno),
-    foreign key(itemno) references item(itemno)
-);
-
-create table warehouse(
-	warehouseno int,
-    city varchar(30),
-    primary key(warehouseno)
-);
-
-create table shipment(
-	orderno int,
-    warehouseno int,
-    shipDate date,
-    foreign key(orderno) references orderD(orderno),
-    foreign key(warehouseno) references warehouse(warehouseno)
-);
-
-insert into cust values(1,'ajay','delhi'),(2,'birendra','amritsar'),(3,'akash','patna'),(4,'santosh','bangalore'),(5,'mahesh','agra');
-
-insert into item values(1,10),(2,20),(3,30),(4,40),(5,50);
-
-insert into orderD values(1,'2020-1-01',1,30),(2,'2020-02-02',2,50),(3,'2020-03-03',3,70),(4,'2020-04-04',4,90),(5,'2020-05-05',5,110);
-
-insert into orditem values(5,1,11),(4,3,3),(3,1,7),(2,5,1),(1,3,1);
-
-insert into warehouse values(1,'ajmer'),(2,'bangalore'),(3,'chennai'),(4,'mumbai'),(5,'delhi');
-
-insert into shipment values(1,1,'2020-01-02'),(2,2,'2020-02-03'),(3,3,'2020-03-04'),(4,4,'2020-04-05'),(5,5,'2020-05-06');
+/*1. Count the customers with grades above Bangalore’s average. */
+select Count(*) 
+from CUSTOMER
+where Grade>(select avg(Grade)
+			from CUSTOMER
+			where City='BANGALORE');
+            
+/*2. Find the name and numbers of all salesmen who had more than one customer. */
+select salesman_id,sname
+from salesman
+where salesman_id=(select Salesman_id
+					from CUSTOMER
+                    where CUSTOMER.Salesman_id=salesman.salesman_id
+                    group by CUSTOMER.Salesman_id
+                    having count(*)>1);
+                    
+/* 2. Find the name and numbers of all salesmen who had more than one customer.  */
+select salesman_id, sname
+from salesman A 
+where 1 < (select count(*) 
+from CUSTOMER 
+where Salesman_id=A.salesman_id);
+					      
+/* 3 */
+select s.salesman_id,s.sname,c.Cust_Name,s.commission
+from salesman s,customer c
+where s.city=c.City
+union
+select salesman_id,sname,'NO MATCH',commission
+from salesman
+where not city=any(select City from customer);					      
 
 
-select cust.cname,count(orderD.custno),avg(orderD.ordAmt)
-from  cust,orderD
-where cust.custno = orderD.custno
-group by orderD.custno;
+/*4. Create a view that finds the salesman who has the customer with the highest order of a day. */
+create view BestSalesman AS
+select B.Ord_Date, A.salesman_id, A.sname 
+from salesman A, ORDERS B
+where A.salesman_id = B.Salesman_id 
+AND B.Purchase_Amt=(select MAX(Purchase_Amt) 
+from ORDERS C 
+WHERE C.Ord_Date = B.Ord_Date);
 
+select * from BestSalesman;
 
-select count(shipment.orderno)
-from shipment,warehouse
-where warehouse.warehouseno = shipment.warehouseno and warehouse.city='delhi';
+/*5. Demonstrate the DELETE operation by removing salesman with id 1000. All his orders must also be deleted. */
 
-alter table orditem add constraint foreign key(itemno) references item(itemno) on delete null;
+ALTER TABLE ORDERS
+  ADD CONSTRAINT Salesman_id
+  FOREIGN KEY (Salesman_id) 
+  REFERENCES salesman(salesman_id) 
+  ON DELETE CASCADE;
+  
+ALTER TABLE CUSTOMER 
+  ADD CONSTRAINT Salesman_idCust
+  FOREIGN KEY (Salesman_id) 
+  REFERENCES salesman(salesman_id) 
+  ON DELETE SET NULL;
+  
+delete from salesman 
+where salesman_id=1000;
